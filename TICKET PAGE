@@ -1,0 +1,322 @@
+function MainComponent() {
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [newTicketForm, setNewTicketForm] = useState({
+    customer_id: "",
+    subject: "",
+    description: "",
+  });
+  const [customerMessage, setCustomerMessage] = useState("");
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const fetchTickets = async () => {
+    try {
+      const response = await fetch("/api/tickets/list", {
+        method: "POST",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch tickets");
+      }
+      const data = await response.json();
+      setTickets(data.tickets);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load tickets");
+      setLoading(false);
+    }
+  };
+
+  const createTicket = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("/api/tickets/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTicketForm),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to create ticket");
+      }
+      const data = await response.json();
+      setTickets([data.ticket, ...tickets]);
+      setNewTicketForm({ customer_id: "", subject: "", description: "" });
+    } catch (err) {
+      console.error(err);
+      setError("Failed to create ticket");
+    }
+  };
+
+  const selectTicket = async (ticketId) => {
+    try {
+      const response = await fetch("/api/tickets/get", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticket_id: ticketId }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch ticket details");
+      }
+      const data = await response.json();
+      setSelectedTicket(data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load ticket details");
+    }
+  };
+
+  const updateTicket = async (e) => {
+    e.preventDefault();
+    if (!selectedTicket || !customerMessage.trim()) return;
+
+    try {
+      const response = await fetch("/api/tickets/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticket_id: selectedTicket.ticket.id,
+          customer_message: customerMessage,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update ticket");
+      }
+      const data = await response.json();
+      setSelectedTicket(data);
+      setCustomerMessage("");
+    } catch (err) {
+      console.error(err);
+      setError("Failed to update ticket");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-red-500">{error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 p-4">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold mb-8 text-white text-center drop-shadow-lg">
+          🌈 AURA Support System
+        </h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 mb-6 shadow-xl border-4 border-rainbow animate-border">
+              <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+                ✨ Create New Ticket
+              </h2>
+              <form onSubmit={createTicket}>
+                <input
+                  type="text"
+                  placeholder="Customer ID"
+                  className="w-full p-3 mb-4 border-2 border-blue-300 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-400 transition-all"
+                  value={newTicketForm.customer_id}
+                  onChange={(e) =>
+                    setNewTicketForm({
+                      ...newTicketForm,
+                      customer_id: e.target.value,
+                    })
+                  }
+                />
+                <input
+                  type="text"
+                  placeholder="Subject"
+                  className="w-full p-3 mb-4 border-2 border-purple-300 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all"
+                  value={newTicketForm.subject}
+                  onChange={(e) =>
+                    setNewTicketForm({
+                      ...newTicketForm,
+                      subject: e.target.value,
+                    })
+                  }
+                />
+                <textarea
+                  placeholder="Description"
+                  className="w-full p-3 mb-4 border-2 border-pink-300 rounded-xl focus:ring-4 focus:ring-pink-200 focus:border-pink-400 transition-all"
+                  value={newTicketForm.description}
+                  onChange={(e) =>
+                    setNewTicketForm({
+                      ...newTicketForm,
+                      description: e.target.value,
+                    })
+                  }
+                />
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white p-3 rounded-xl font-bold hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+                >
+                  🎨 Create Ticket
+                </button>
+              </form>
+            </div>
+
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-4 border-rainbow animate-border">
+              <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+                📋 Tickets
+              </h2>
+              <div className="space-y-4">
+                {tickets.map((ticket) => (
+                  <div
+                    key={ticket.id}
+                    className={`p-4 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-xl ${
+                      selectedTicket?.ticket.id === ticket.id
+                        ? "bg-gradient-to-r from-blue-100 via-purple-100 to-pink-100 border-2 border-purple-400 transform scale-[1.02]"
+                        : "bg-white border-2 border-transparent hover:border-blue-300"
+                    }`}
+                    onClick={() => selectTicket(ticket.id)}
+                  >
+                    <div className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                      {ticket.subject}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          ticket.status === "open"
+                            ? "bg-gradient-to-r from-green-400 to-emerald-400 text-white"
+                            : ticket.status === "closed"
+                              ? "bg-gradient-to-r from-red-400 to-rose-400 text-white"
+                              : "bg-gradient-to-r from-yellow-400 to-amber-400 text-white"
+                        }`}
+                      >
+                        {ticket.status.toUpperCase()} 🔵
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          ticket.priority === "high"
+                            ? "bg-gradient-to-r from-red-400 to-rose-400 text-white"
+                            : ticket.priority === "low"
+                              ? "bg-gradient-to-r from-blue-400 to-cyan-400 text-white"
+                              : "bg-gradient-to-r from-yellow-400 to-amber-400 text-white"
+                        }`}
+                      >
+                        {ticket.priority.toUpperCase()} ⚡
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mt-2">
+                      🕒 Created: {new Date(ticket.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            {selectedTicket ? (
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-4 border-rainbow animate-border">
+                <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+                  🎯 Ticket #{selectedTicket.ticket.id}:{" "}
+                  {selectedTicket.ticket.subject}
+                </h2>
+                <div className="mb-6">
+                  <div className="font-bold text-lg text-blue-600">
+                    📝 Description:
+                  </div>
+                  <div className="text-gray-700 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mt-2 border-2 border-blue-100">
+                    {selectedTicket.ticket.description}
+                  </div>
+                </div>
+
+                <div className="space-y-4 mb-6">
+                  <h3 className="font-bold text-lg text-purple-600">
+                    💬 Interactions:
+                  </h3>
+                  {selectedTicket.interactions.map((interaction, index) => (
+                    <div
+                      key={index}
+                      className={`p-4 rounded-xl ${
+                        interaction.agent_type === "CUSTOMER"
+                          ? "bg-gradient-to-r from-blue-100 to-cyan-100 border-2 border-blue-200"
+                          : "bg-gradient-to-r from-purple-100 to-pink-100 border-2 border-purple-200"
+                      }`}
+                    >
+                      <div className="font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+                        {interaction.agent_type === "CUSTOMER" ? "👤" : "🤖"}{" "}
+                        {interaction.agent_type} - {interaction.action}
+                      </div>
+                      <div className="text-gray-700">{interaction.content}</div>
+                      <div className="text-sm text-gray-500 mt-2">
+                        🕒 {new Date(interaction.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={updateTicket}>
+                  <textarea
+                    placeholder="Type your message..."
+                    className="w-full p-3 mb-4 border-2 border-purple-300 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all"
+                    value={customerMessage}
+                    onChange={(e) => setCustomerMessage(e.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white p-3 rounded-xl font-bold hover:from-blue-600 hover:via-purple-600 hover:to-pink-600 transform transition-all duration-200 hover:scale-[1.02] hover:shadow-lg active:scale-[0.98]"
+                  >
+                    ✨ Send Message
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-xl border-4 border-rainbow animate-border flex items-center justify-center h-48">
+                <div className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600">
+                  ← Select a ticket to view details ✨
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <style jsx global>{`
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+
+        .bg-gradient-to-br {
+          background-size: 400% 400%;
+          animation: gradient 15s ease infinite;
+        }
+
+        .border-rainbow {
+          border-image: linear-gradient(45deg, #60A5FA, #C084FC, #F472B6) 1;
+        }
+
+        @keyframes border-animation {
+          0% { border-image-source: linear-gradient(45deg, #60A5FA, #C084FC, #F472B6); }
+          33% { border-image-source: linear-gradient(45deg, #F472B6, #60A5FA, #C084FC); }
+          66% { border-image-source: linear-gradient(45deg, #C084FC, #F472B6, #60A5FA); }
+          100% { border-image-source: linear-gradient(45deg, #60A5FA, #C084FC, #F472B6); }
+        }
+
+        .animate-border {
+          animation: border-animation 6s linear infinite;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+
+
