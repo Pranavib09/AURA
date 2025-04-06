@@ -1,0 +1,25 @@
+async function handler({ status = null, priority = null }) {
+  let queryText = 'SELECT * FROM tickets WHERE 1=1';
+  const values = [];
+  let paramCount = 0;
+
+  if (status) {
+    paramCount++;
+    queryText += ` AND status = $${paramCount}`;
+    values.push(status);
+  }
+
+  if (priority) {
+    paramCount++;
+    queryText += ` AND priority = $${paramCount}`;
+    values.push(priority);
+  }
+
+  queryText += ' ORDER BY created_at DESC';
+
+  const tickets = await sql(queryText, values);
+
+  return {
+    tickets
+  };
+}
