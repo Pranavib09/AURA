@@ -1,0 +1,87 @@
+async function handler({ ticket_id, updates, customer_message }) {
+  const setClause = [];
+  const values = [ticket_id];
+  let paramCount = 1;
+
+  if (updates.status) {
+    setClause.push(`status = $${++paramCount}`);
+    values.push(updates.status);
+  }
+
+  if (updates.priority) {
+    setClause.push(`priority = $${++paramCount}`);
+    values.push(updates.priority);
+  }
+
+  if (updates.subject) {
+    setClause.push(`subject = $${++paramCount}`);
+    values.push(updates.subject);
+  }
+
+  if (updates.description) {
+    setClause.push(`description = $${++paramCount}`);
+    values.push(updates.description);
+  }
+
+  setClause.push(`updated_at = CURRENT_TIMESTAMP`);
+
+  const [updatedTicket] = await sql(
+    `UPDATE tickets 
+     SET ${setClause.join(', ')}
+     WHERE id = $1
+     RETURNING *`,
+    values
+  );
+
+  if (!updatedTicket) {
+    return { error: "Ticket not found" };
+  }
+
+  if (customer_message) {
+    await sql(
+      `INSERT INTO interactions (ticket_id, agent_type, action, content) 
+       VALUES ($1, 'CUSTOMER', 'update', $2)`,
+      [ticket_id, customer_message]
+    );
+
+    const messages = [
+      {
+        role: "system",
+        content: "You are AURA, an AI support agent. Review the customer's message and provide a helpful response."
+      },
+      {
+        role: "user",
+        content: customer_message
+      }
+    ];
+
+    const response = await fetch('/integrations/anthropic-claude-sonnet-3-5/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages })
+    });
+
+    const result = await response.json();
+    const auraResponse = result.choices[0].message.content;
+
+    await sql(
+      `INSERT INTO interactions (ticket_id, agent_type, action, content)
+       VALUES ($1, 'AURA', 'response', $2)`,
+      [ticket_id, auraResponse]
+    );
+  }
+
+  const interactions = await sql(
+    `SELECT * FROM interactions 
+     WHERE ticket_id = $1 
+     ORDER BY created_at ASC`,
+    [ticket_id]
+  );
+
+  return {
+    ticket: updatedTicket,
+    interactions
+  };
+}
+
+
