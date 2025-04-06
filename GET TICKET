@@ -1,0 +1,22 @@
+async function handler({ ticket_id }) {
+  const [ticket] = await sql`
+    SELECT * FROM tickets 
+    WHERE id = ${ticket_id}
+  `;
+
+  if (!ticket) {
+    return { error: "Ticket not found" };
+  }
+
+  const interactions = await sql`
+    SELECT * FROM interactions 
+    WHERE ticket_id = ${ticket_id} 
+    ORDER BY created_at ASC
+  `;
+
+  return {
+    ticket,
+    interactions
+  };
+}
+
